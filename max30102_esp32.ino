@@ -6,7 +6,7 @@
 #include <HTTPClient.h>
 
 
-// Voici le récapitulatif propre de tes branchements finaux, prêt à être glissé direct dans ton Obsidian pour ne rien oublier au prochain montage :
+// Récapitulatif des branchements :
 
 // ### 🔌 Alimentation (Commune aux deux capteurs)
 
@@ -33,6 +33,8 @@
 // * **SDA** ➡️ **GPIO 32**
 // * **SCL** ➡️ **GPIO 33**
 
+// Le bouton est branché sur le GPIO 4 et le GND
+
 
 // partage de conexion en 2.4ghz
 // désactiver tous les parefeu du pc sinon ça marche pas
@@ -42,6 +44,9 @@
 const char* ssid = "student-laptop";
 const char* password = "MDPPPPPP";
 const char* serverName = "http://192.168.137.1:5000/data"; 
+
+// --- CONFIGURATION DU BOUTON ---
+#define BOUTON_PIN 4
 
 // --- INITIALISATION DES CAPTEURS ---
 MAX30105 particleSensor;
@@ -75,6 +80,9 @@ bool bpmValide(int bpm) {
 
 void setup() {
     Serial.begin(115200);
+
+    // --- CONFIGURATION DE LA BROCHE DU BOUTON ---
+    pinMode(BOUTON_PIN, INPUT_PULLUP); 
     
     // --- CONNEXION WI-FI ---
     Serial.print("\nConnexion au Wi-Fi ");
@@ -114,17 +122,19 @@ void setup() {
 
     Serial.println("\n=========================================");
     Serial.println("🤖 SYSTÈME PRÊT !");
-    Serial.println("👉 Tapez 's' dans le moniteur série pour lancer un scan de 5 secondes.");
+    Serial.println("👉 Appuie sur le bouton physique pour lancer un scan de 5 secondes.");
     Serial.println("=========================================\n");
 }
 
 void loop() {
     // 1. --- GESTION DU DÉCLENCHEUR ---
     // On lit le moniteur série. Si on reçoit 's', on démarre le scan.
-    if (Serial.available() > 0) {
-        char c = Serial.read();
-        if ((c == 's' || c == 'S') && !enCoursDeScan) {
-            Serial.println("\n🚀 DÉMARRAGE DU SCAN (5 secondes)... Posez le doigt !");
+    if (digitalRead(BOUTON_PIN) == LOW && !enCoursDeScan) {
+        
+        // Anti-rebond rapide pour être sûr que c'est un vrai appui
+        delay(50); 
+        if (digitalRead(BOUTON_PIN) == LOW) {
+            Serial.println("\n🚀 BOUTON APPUYÉ ! Démarrage du scan... Posez le doigt !");
             enCoursDeScan = true;
             debutScan = millis();
             
@@ -135,6 +145,11 @@ void loop() {
             compteBpm = 0;
             compteSpo2 = 0;
             compteTemp = 0;
+            
+            // On attend que l'utilisateur relâche le bouton pour ne pas relancer en boucle
+            while(digitalRead(BOUTON_PIN) == LOW) {
+                delay(10);
+            }
         }
     }
 
@@ -220,7 +235,7 @@ void loop() {
                 Serial.println("❌ Wi-Fi déconnecté !");
             }
             
-            Serial.println("\n👉 Tapez 's' pour lancer un nouveau scan.");
+            Serial.println("\n👉 Appuie sur le bouton pour lancer un nouveau scan.");
         }
     }
 }
